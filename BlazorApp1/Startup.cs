@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using BlazorApp1.Data;
+using RFID_DataAccessLibrary;
 
 namespace BlazorApp1
 {
@@ -29,6 +30,8 @@ namespace BlazorApp1
             services.AddRazorPages();
             services.AddServerSideBlazor();
             services.AddSingleton<WeatherForecastService>();
+            services.AddTransient<IsqlDataAccess, sqlDataAccess>();
+            services.AddTransient<IBookData, BookData>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

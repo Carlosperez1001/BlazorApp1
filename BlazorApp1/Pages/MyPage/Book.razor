@@ -1,0 +1,71 @@
+﻿@page "/Book"
+@using RFID_DataAccessLibrary
+@using RFID_DataAccessLibrary.models
+
+@using System.IO;
+
+@inject IBookData _db
+<h1>Book Table</h1>
+
+@if (books is null)
+{
+    <p><em>loading....</em></p>
+
+}
+else
+{
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Title</th>
+                <th>Author</th>
+                <th>EPC</th>
+                <th>TimeStamp</th>
+                <th>RSSI</th>
+            </tr>
+        </thead>
+        <tbody>
+
+            @foreach (var book in books)
+            {
+                <tr>
+                    <td>@book.Book_id</td>
+
+                    <td>@book.Book_Title</td>
+                    <td>
+                        @if (book.Book_Image != null)
+                        {
+
+                            <img Width="100" Height="120" src="data:image/bmp;base64, @(Convert.ToBase64String(@book.Book_Image))" />
+                            //rImage.ImageUrl = "data:image;base64," + Convert.ToBase64String(book.Book_Image");
+                        }
+                    
+                    </td>
+                    <td>@book.Book_Autor</td>
+                    <td>@book.Book_RFID_EPC</td>
+                    <td>@book.Book_RFID_TimeStamp</td>
+                    <td>@book.Book_RFID_RSSI</td>
+
+                </tr>
+            }
+        </tbody>
+
+    </table>
+}
+
+
+@code {
+    private List<BookModel> books;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        books = await _db.GetBook();
+
+    }
+
+    
+
+}
