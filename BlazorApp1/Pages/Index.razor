@@ -1,0 +1,200 @@
+﻿@page "/"
+@using ThingMagic
+
+@using System;
+@using System.Diagnostics;
+@using System.IO;
+@using System.Threading
+
+    <div style="display:flex; justify-content:space-between;">
+        <h1>Hello, world!</h1>
+        <h1 class="error" style="color:red">s @ErrorMessage</h1>
+        <svg id="Icon_ConnectiveStatus" height="100" width="100" style="float:right;  ">
+            <circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="@StyleSVG" />
+        </svg>
+    </div>
+        <div class="COM_container">
+            <div style="display: flex;flex-direction: column;@StyleSelect">
+                <select id="COM_PORT" @bind="selectedValue">
+                    <option value="1" selected="selected">Com 1</option>
+                    <option value="2">Com 2</option>
+                    <option value="3">Com 3</option>
+                    <option value="4">Com 4</option>
+                    <option value="5">Com 5</option>
+                    <option value="6">Com 6</option>
+                    <option value="7">Com 7</option>
+                </select>
+                <button class="btn btn-primary" @onclick="onClick_btnConnect">Click</button>
+                <p>Current status: @currentStatusLBL</p>
+            </div>
+
+        </div>
+        <button class="btn btn-primary" @onclick="btn_StartScanning_Click">Start Reading</button>
+        <table class="table" id="UnregisteredDataGrid">
+            <tr>
+                <th>Firstname</th>
+                <th>Firstname</th>
+                <th>Firstname</th>
+            </tr>
+
+        </table>
+   
+        @code {
+            string ErrorMessage;
+            string StyleSVG = "red";
+            string StyleSelect;
+            public string EPC { get; private set; }
+            public string timeStamp { get; private set; }
+            public string RSSI { get; private set; }
+            private string currentStatusLBL = "Disconnect";
+            public int COM_Port = 0;
+            public bool toggelReader = false;
+            public bool connectiveStatus = false;
+            public ThingMagic.Reader reader;
+            public int selectedValue;
+
+            public void onClick_btnConnect()
+            {
+
+                currentStatusLBL = selectedValue.ToString();
+                COM_Port = selectedValue;
+                ConnectRFID();
+
+            }
+
+
+            public void ConnectRFID()
+            {
+                {
+                    try
+                    {
+
+                        //Check reading power settings
+
+                        string uri = "eapi:///com" + COM_Port;                                              //Configurations of COMs "USB Port"
+                        reader = ThingMagic.Reader.Create(uri);                                             //Create Reader object
+
+                        reader.Connect();
+
+
+
+
+
+                        reader.ParamSet("/reader/region/id", ThingMagic.Reader.Region.NA);
+
+                        int readPowerMax = (int)reader.ParamGet("/reader/radio/powerMax");
+                        int readPowerMin = (int)reader.ParamGet("/reader/radio/powerMin");
+
+                        Console.WriteLine("Max= " + readPowerMax);
+                        Console.WriteLine("Min= " + readPowerMin);
+                        reader.ParamSet("/reader/radio/readPower", 2000);
+                        int[] antennaList = null;
+                        string str = "1,1";
+                        antennaList = Array.ConvertAll(str.Split(','), int.Parse);                                   //Select antenna 1
+
+                        SimpleReadPlan plan = new SimpleReadPlan(antennaList, TagProtocol.GEN2, null, null, 1000);  //Create "Plan" for module configuration
+                        reader.ParamSet("/reader/read/plan", plan);
+
+                        connectiveStatus = true;
+                        updateConnectiveStatus();                                                                    //Update UI
+                        currentStatusLBL = "Device is connected to " + COM_Port + ".";
+
+
+                    }
+                    catch (System.IO.IOException e)
+                    {
+                        Console.WriteLine(e.Message);
+                        currentStatusLBL = COM_Port + " is not valid";
+
+                    }
+                }
+
+            }
+            public void updateConnectiveStatus()
+            {
+                if (connectiveStatus == true)
+                {
+                    StyleSVG = "yellow";
+
+                    // cbox_COM.IsEnabled = false;
+                    // btn_Connect.IsEnabled = false;
+
+                    if (toggelReader == true)
+                    {
+                        //  Icon_ConnectiveStatus.Fill = new SolidColorBrush(Colors.Green);
+                        // lbl_ConnectiveStatus.Content = "Scanning";
+                    }
+                }
+                else
+                {
+
+                    StyleSVG = "red";
+                    //   Icon_ConnectiveStatus.Fill = new SolidColorBrush(Colors.Red);
+                    //.Content = "Disconnected";
+                }
+            }
+
+            private void btn_StartScanning_Click()
+            {
+                if (toggelReader == false && connectiveStatus == true)
+                {
+                    //btn_ToggleRead.Content = "Stop";
+                    toggelReader = true;
+                    ReadBatchRFID();
+                    updateConnectiveStatus();
+                    ErrorMessage = "";
+                }
+                else if (toggelReader == true && connectiveStatus == true)
+                {
+                    //  btn_ToggleRead.Content = "Start Reading";
+                    toggelReader = false;
+                    updateConnectiveStatus();
+                    ErrorMessage = "";
+                }
+                else
+                {
+                    //connectiveStatus == false
+                    ErrorMessage = "M6e is not connected properly. Please select the correct COM port that connects the M6e module";
+                }
+            }
+
+            public void ReadBatchRFID()
+            {
+
+
+                if (connectiveStatus == true && toggelReader == true)
+                {
+                    try
+                    {
+                        reader.StartReading();
+                        reader.TagRead += OnTagRead;
+                    }
+                    catch (System.IO.IOException e)
+                    {
+                        ErrorMessage=e.Message;
+                        //    Console.WriteLine(e.Message);
+                    }
+                }
+                else
+                {
+                    // MessageBox.Show("M6e is not connected properly. Please select the correct COM port that connects the M6e module");
+                }
+            }
+
+
+
+
+            private void OnTagRead(Object sender, TagReadDataEventArgs e)
+            {
+                currentStatusLBL = e.TagReadData.Tag.ToString();
+                StyleSVG = "blue";
+                updateConnectiveStatus();
+
+            }
+            private void ShowAlert(string message)
+            {
+
+                Console.WriteLine("ShowAlert", message);
+            }
+        }
+        }
