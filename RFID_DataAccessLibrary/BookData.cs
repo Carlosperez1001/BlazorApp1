@@ -13,10 +13,11 @@ namespace RFID_DataAccessLibrary
         {
             _db = db;
         }
+      
 
         public Task<List<BookModel>> GetBook()
         {
-            string mySql = "select * from items.Book";
+            string mySql = "select * from item_book.books";
             return _db.LoadData<BookModel, dynamic>(mySql, new { });
         }
         public Task InsertBook(BookModel book)
