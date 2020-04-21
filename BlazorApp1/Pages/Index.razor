@@ -7,15 +7,19 @@
 @using System.IO;
 @using System.Threading
 
+
+
+<!--------------------------------------------      HTML Block        ------------------------------->
 <div style="display:flex; justify-content:space-between;">
     <h1>Inventory Management System RFID</h1>
     <h1 class="error" style="color:red"> @ErrorMessage</h1>
     <svg id="Icon_ConnectiveStatus" height="100" width="100" style="float:right;  ">
         <circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="@StyleSVG" />
+        <text x="50%" y="50%" text-anchor="middle" fill="black">@StyleSVGMessage</text>
     </svg>
 </div>
 <div class="COM_container">
-    <div style="display: flex;flex-direction: column;@StyleSelect">
+    <div style="display: flex;flex-direction: column; @StyleSelect">
         <select id="COM_PORT" @bind="selectedValue">
             <option value="1" selected="selected">Com 1</option>
             <option value="2">Com 2</option>
@@ -25,13 +29,15 @@
             <option value="6">Com 6</option>
             <option value="7">Com 7</option>
         </select>
-        <button class="btn btn-primary" @onclick="onClick_btnConnect">Click</button>
+        <button class="btn btn-primary" @onclick="onClick_btnConnect" disabled="@StyleBtnConnect"> Connect</button>
         <p>Current status: @currentStatusLBL</p>
     </div>
 
 </div>
-<button class="btn btn-primary" @onclick="btn_StartScanning_Click">Start Reading</button>
-
+<div style="display:flex; justify-content:space-between;">
+    <button class="btn btn-primary" @onclick="btn_StartScanning_Click">@btn_connect</button>
+    <button class="btn btn-primary" @onclick="btn_ClearList">Clear List</button>
+</div>
 
 <table class="table table-striped">
     <thead>
@@ -60,48 +66,58 @@
     </tbody>
 
 </table>
-}
+
+
+<button class="btn btn-primary">Add RFID Tag</button>
+
+
+<!--------------------------------------------      C# Block        ------------------------------->
 @code {
-    private List<UnknownItemData> items;
+
+    //CSS Properities 
     string ErrorMessage;
     string StyleSVG = "red";
+    private string StyleSVGMessage = "Disconnect";
     string StyleSelect;
+    private string currentStatusLBL = "Disconnect";
+    private string btn_connect = "Start reading";
+    private bool StyleBtnConnect;
+    public int COM_Port = 0;
+    public int selectedValue;
+
+    //RFID Properities 
+    private List<UnknownItemData> items;
     public string EPC { get; private set; }
     public string timeStamp { get; private set; }
     public string RSSI { get; private set; }
-    private string currentStatusLBL = "Disconnect";
-    public int COM_Port = 0;
+
+
+    //READER Properities 
     public bool toggelReader = false;
     public bool connectiveStatus = false;
     public ThingMagic.Reader reader;
-    public int selectedValue;
 
+    //Prepare the webapp to connect the RFID Device 
     public void onClick_btnConnect()
     {
-
         currentStatusLBL = selectedValue.ToString();
         COM_Port = selectedValue;
         ConnectRFID();
-
     }
 
-
+    //Connect the webapp with the RFID Device
     public void ConnectRFID()
     {
         {
             try
             {
 
-                //Check reading power settings
-
                 string uri = "eapi:///com" + COM_Port;                                              //Configurations of COMs "USB Port"
                 reader = ThingMagic.Reader.Create(uri);                                             //Create Reader object
 
                 reader.Connect();
 
-
-
-
+                StyleBtnConnect = true;                                                             //Disable connect BTN
 
                 reader.ParamSet("/reader/region/id", ThingMagic.Reader.Region.NA);
 
@@ -121,39 +137,36 @@
                 connectiveStatus = true;
                 updateConnectiveStatus();                                                                    //Update UI
                 currentStatusLBL = "Device is connected to " + COM_Port + ".";
-
-
+                StyleSVG = "yellow";
+                StyleSVGMessage = "IDLE";
             }
             catch (System.IO.IOException e)
             {
                 Console.WriteLine(e.Message);
-                currentStatusLBL = COM_Port + " is not valid";
+                ErrorMessage = "Port " + COM_Port + " is not valid";
 
             }
         }
 
     }
+
+
     public void updateConnectiveStatus()
     {
         if (connectiveStatus == true)
         {
             StyleSVG = "yellow";
 
-            // cbox_COM.IsEnabled = false;
-            // btn_Connect.IsEnabled = false;
-
             if (toggelReader == true)
             {
-                //  Icon_ConnectiveStatus.Fill = new SolidColorBrush(Colors.Green);
-                // lbl_ConnectiveStatus.Content = "Scanning";
-            }
-        }
-        else
-        {
 
-            StyleSVG = "red";
-            //   Icon_ConnectiveStatus.Fill = new SolidColorBrush(Colors.Red);
-            //.Content = "Disconnected";
+            }
+            else
+            {
+
+                StyleSVG = "red";
+
+            }
         }
     }
 
@@ -161,22 +174,36 @@
     {
         if (toggelReader == false && connectiveStatus == true)
         {
-            //btn_ToggleRead.Content = "Stop";
+
+
+            if (reader == null)
+            {
+                ConnectRFID();
+
+            }
             toggelReader = true;
             ReadBatchRFID();
             updateConnectiveStatus();
             ErrorMessage = "";
+            btn_connect = "Stop Reading";
+            StyleSVG = "green";
+            StyleSVGMessage = "Reading";
         }
         else if (toggelReader == true && connectiveStatus == true)
         {
-            //  btn_ToggleRead.Content = "Start Reading";
+
             toggelReader = false;
             updateConnectiveStatus();
             ErrorMessage = "";
+            btn_connect = "Start Reading";
+            reader.Destroy();
+            reader = null;
+            StyleSVG = "yellow";
+            StyleSVGMessage = "IDLE";
         }
         else
         {
-            //connectiveStatus == false
+            connectiveStatus = false;
             ErrorMessage = "M6e is not connected properly. Please select the correct COM port that connects the M6e module";
         }
     }
@@ -194,14 +221,11 @@
             }
             catch (System.IO.IOException e)
             {
-                ErrorMessage = e.Message +"111";
-                //    Console.WriteLine(e.Message);
+                ErrorMessage = e.Message + "111";
+
             }
         }
-        else
-        {
-            // MessageBox.Show("M6e is not connected properly. Please select the correct COM port that connects the M6e module");
-        }
+
     }
 
 
@@ -211,23 +235,22 @@
     {
 
         bool check_Unknown = false;
-        bool check_Book = false;
+
         currentStatusLBL = e.TagReadData.Tag.ToString();
         InvokeAsync(() =>
         {
             if (toggelReader == false)
             {
-                
+
                 reader.StopReading();
                 return;
             }
             ErrorMessage = e.TagReadData.EpcString;
-           
-                this.StateHasChanged();
+
+            this.StateHasChanged();
 
             check_Unknown = UnknownItemData.CheckList(e);
             items = UnknownItemData.getUnknownRFIDList();
-            // UpdateUnkownRFID_DG(check_Unknown);
         });
     }
 
@@ -239,10 +262,13 @@
         Console.WriteLine("ShowAlert", message);
     }
 
-    public void UpdateUnkownRFID_DG(bool CheckUknown)
+    public void btn_ClearList()
     {
-
-
-    }
+        items.Clear();
 
     }
+
+
+
+
+}
